@@ -1,56 +1,61 @@
-{% block title %}
-<h2>My Profile</h2>
-{% endblock %}
+{% block title %}{% endblock %}
 
 {% block content%}
-<div class="btn-group {% if BOOTSTRAP_VERSION|first == "4" %}float-right{% elif BOOTSTRAP_VERSION|first == "5" %}float-end{% endif %}">
-	<a class="btn btn-secondary" onclick=" href='{% url 'core_main_set_timezone' %}'">
-        <i class="fas fa-globe"></i> Preferences
-    </a>
-    <a class="btn btn-secondary" onclick=" href='{% url 'core_dashboard_profile_edit' %}'">
-        <i class="fas fa-edit"></i> Edit Profile
-    </a>
-    {% if not data.ENABLE_SAML2_SSO_AUTH %}
-	<a class="btn btn-secondary" onclick=" href='{% url 'password_change' %}'">
-        <i class="fas fa-lock"></i> Change Password
-    </a>
-    {% endif %}
+<div class="am-panel-page am-panel-wrap">
+<div class="am-panel-card am-profile-card">
+    <h1 class="am-panel-title">
+        {% if user.first_name or user.last_name %}
+        {{ user.first_name }} {{ user.last_name }}
+        {% else %}
+        {{ user.username }}
+        {% endif %}
+    </h1>
+    <p class="am-panel-subtitle">@{{ user.username }}</p>
+
+    <div class="am-profile-actions">
+        <a class="am-profile-action" onclick="location.href='{% url 'core_main_set_timezone' %}'">
+            <i class="fas fa-globe"></i> Preferences
+        </a>
+        <a class="am-profile-action" onclick="location.href='{% url 'core_dashboard_profile_edit' %}'">
+            <i class="fas fa-edit"></i> Edit Profile
+        </a>
+        {% if not data.ENABLE_SAML2_SSO_AUTH %}
+        <a class="am-profile-action" onclick="location.href='{% url 'core_dashboard_profile_change_password' %}'">
+            <i class="fas fa-lock"></i> Change Password
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="am-profile-list">
+        <div class="am-profile-row">
+            <span class="am-profile-label">Username</span>
+            <span>{{ user.username }}</span>
+        </div>
+        <div class="am-profile-row">
+            <span class="am-profile-label">Email</span>
+            <span>{{ user.email }}</span>
+        </div>
+        <div class="am-profile-row">
+            <span class="am-profile-label">Admin</span>
+            <span>{{ user.is_staff|yesno:"Yes,No" }}</span>
+        </div>
+        <div class="am-profile-row">
+            <span class="am-profile-label">Active</span>
+            <span>{{ user.is_active|yesno:"Yes,No" }}</span>
+        </div>
+        <div class="am-profile-row">
+            <span class="am-profile-label">Superuser</span>
+            <span>{{ user.is_superuser|yesno:"Yes,No" }}</span>
+        </div>
+        <div class="am-profile-row">
+            <span class="am-profile-label">Last Login</span>
+            <span>{{ user.last_login }}</span>
+        </div>
+        <div class="am-profile-row">
+            <span class="am-profile-label">Date Joined</span>
+            <span>{{ user.date_joined }}</span>
+        </div>
+    </div>
 </div>
-<br/><br/>
-<div>
-    <table class="table table-bordered table-striped table-hover">
-        <tr>
-            <td><b>Name:</b></td>
-            <td>{{ user.first_name }} {{ user.last_name }}</td>
-        </tr>
-        <tr>
-            <td><b>Username:</b></td>
-            <td>{{ user.username }}</td>
-        </tr>
-        <tr>
-            <td><b>Email:</b></td>
-            <td>{{ user.email }}</td>
-        </tr>
-        <tr>
-            <td><b>Admin:</b></td>
-            <td>{{ user.is_staff }}</td>
-        </tr>
-        <tr>
-            <td><b>Active:</b></td>
-            <td>{{ user.is_active }}</td>
-        </tr>
-        <tr>
-            <td><b>Superuser:</b></td>
-            <td>{{ user.is_superuser }}</td>
-        </tr>
-        <tr>
-            <td><b>Last Login:</b></td>
-            <td>{{ user.last_login }}</td>
-        </tr>
-        <tr>
-            <td><b>Date Joined:</b></td>
-            <td>{{ user.date_joined }}</td>
-        </tr>
-    </table>
 </div>
 {% endblock %}

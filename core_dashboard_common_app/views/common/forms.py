@@ -26,9 +26,8 @@ class UserForm(forms.Form):
     users = forms.ChoiceField(label="", required=True)
     user_options = []
 
-    def __init__(self, current_user):
+    def __init__(self, current_user, current_owner_id=None):
         self.user_options = []
-        self.user_options.append(("", "-----------"))
 
         # We retrieve all users
         sort_users = user_api.get_active_users()
@@ -36,10 +35,20 @@ class UserForm(forms.Form):
         sort_users = sorted(sort_users, key=lambda s: s.username.lower())
 
         # We add them
+        current_owner_in_list = False
         for user in sort_users:
             if user.id != current_user.id or current_user.is_superuser:
                 self.user_options.append((user.id, user.username))
+                if current_owner_id and str(user.id) == str(current_owner_id):
+                    current_owner_in_list = True
+
+        # Fall back to a blank choice only if we don't have a real owner to
+        # preselect - otherwise the dropdown always opens on a real user.
+        if not current_owner_in_list:
+            self.user_options.insert(0, ("", "-----------"))
 
         super().__init__()
         self.fields["users"].choices = []
         self.fields["users"].choices = self.user_options
+        if current_owner_in_list:
+            self.fields["users"].initial = str(current_owner_id)

@@ -2,11 +2,14 @@
 {% load special_plural %}
 
 {% block box_title %}
+    <div class="am-title-row">
         {% if data.title %}
             <h1>{{data.title}}</h1>
         {% else %}
-            {% if come_from_admin %} {{ data.document|special_plural|capfirst}} list {% else %} My {{data.document|special_plural}} {% endif %}
+            {% if come_from_admin %}{{ data.document|special_plural|capfirst}} list{% else %}My {{data.document|special_plural}}{% endif %}
         {% endif %}
+        {% if data.user_data %}<span class="am-count-badge">{{ data.number_total }} {{data.document|special_plural}}</span>{% endif %}
+    </div>
 {% endblock %}
 
 
@@ -26,10 +29,6 @@
 
 
 {% block box_body %}
-{% if data.user_data %}
-    Total number of {{data.document|special_plural}}: {{ data.number_total }}
-{% endif %}
-
 {% if data.menu and not data.title %}
 <div class="dropdown" id="id_actions" style="display:none">
     <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenu1" {% if BOOTSTRAP_VERSION|first == "4" %}data-toggle{% elif BOOTSTRAP_VERSION|first == "5"  %}data-bs-toggle{% endif %}="dropdown" aria-haspopup="true" aria-expanded="true">

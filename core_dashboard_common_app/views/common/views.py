@@ -5,7 +5,9 @@ import math
 
 from django.conf import settings as conf_settings
 from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordChangeForm
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError
 from django.http.response import HttpResponseRedirect
@@ -55,6 +57,9 @@ if "core_composer_app" in INSTALLED_APPS:
 from core_dashboard_common_app import constants as dashboard_constants
 from core_dashboard_common_app import settings
 from core_dashboard_common_app.views.common.forms import ActionForm, UserForm
+from core_dashboard_common_app.views.common.record_filters import (
+    filter_records,
+)
 
 
 @login_required
@@ -89,6 +94,7 @@ def my_profile(request):
             "page_title": "My Profile",
             "ENABLE_SAML2_SSO_AUTH": conf_settings.ENABLE_SAML2_SSO_AUTH,
         },
+        assets={"css": dashboard_constants.CSS_PROFILE},
     )
 
 
@@ -136,6 +142,12 @@ def my_profile_edit(request):
                 "Profile information edited.",
             )
             return HttpResponseRedirect(reverse("core_dashboard_profile"))
+        return render(
+            request,
+            dashboard_constants.DASHBOARD_PROFILE_EDIT_TEMPLATE,
+            context={"form": form, "page_title": "Edit Profile"},
+            assets={"css": dashboard_constants.CSS_PROFILE},
+        )
     user = request.user
     data = {
         "firstname": user.first_name,
@@ -144,29 +156,76 @@ def my_profile_edit(request):
         "email": user.email,
     }
     form = _get_edit_profile_form(
-        request, dashboard_constants.DASHBOARD_PROFILE_TEMPLATE, data
+        request, dashboard_constants.DASHBOARD_PROFILE_TEMPLATE, initial=data
     )
 
     return render(
         request,
         dashboard_constants.DASHBOARD_PROFILE_EDIT_TEMPLATE,
         context={"form": form, "page_title": "Edit Profile"},
+        assets={"css": dashboard_constants.CSS_PROFILE},
     )
 
 
-def _get_edit_profile_form(request, template, data=None):
-    """Edit the profile.
+@login_required
+def my_profile_change_password(request):
+    """Change the connected user's password.
+
+    Args:
+        request:
+
+    Returns:
+    """
+    if request.method == "POST":
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+        if form.is_valid():
+            user = form.save()
+            # keep the user logged in after their password hash changes
+            update_session_auth_hash(request, user)
+            messages.add_message(
+                request,
+                messages.SUCCESS,
+                "Password changed successfully.",
+            )
+            return HttpResponseRedirect(reverse("core_dashboard_profile"))
+    else:
+        form = PasswordChangeForm(user=request.user)
+
+    for field in form.fields.values():
+        field.widget.attrs.setdefault("class", "form-control")
+
+    return render(
+        request,
+        dashboard_constants.DASHBOARD_PROFILE_CHANGE_PASSWORD_TEMPLATE,
+        context={"form": form, "page_title": "Change Password"},
+        assets={"css": dashboard_constants.CSS_PROFILE},
+    )
+
+
+def _get_edit_profile_form(request, template, initial=None):
+    """Build the edit-profile form.
+
+    On GET, `initial` holds the user's current values and the form is left
+    unbound so it displays them without triggering "required" validation
+    errors. On POST (`initial=None`), the form is bound to `request.POST`
+    to validate the submission.
 
     Args:
         request
         template
-        data
+        initial
 
     Returns:
     """
-    data = request.POST if data is None else data
     try:
-        return EditProfileForm(data)
+        form = (
+            EditProfileForm(initial=initial)
+            if initial is not None
+            else EditProfileForm(request.POST)
+        )
+        for field in form.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        return form
     except Exception:
         message = "A problem with the form has occurred."
         return render(
@@ -200,7 +259,7 @@ def _error_while_saving(request, form):
 class DashboardRecords(CommonView):
     """List the records."""
 
-    template = dashboard_constants.DASHBOARD_TEMPLATE
+    template = dashboard_constants.RECORDS_DASHBOARD_TEMPLATE
     data_template = (
         dashboard_constants.DASHBOARD_RECORDS_TEMPLATE_TABLE_PAGINATION
     )
@@ -222,13 +281,20 @@ class DashboardRecords(CommonView):
         # Get records
         if self.administration:
             try:
-                loaded_data = data_api.get_all(request.user)
+                base_data = data_api.get_all(request.user)
 
             except AccessControlError:
-                loaded_data = data_api.get_none()
+                base_data = data_api.get_none()
 
         else:
-            loaded_data = data_api.get_all_by_user(request.user)
+            base_data = data_api.get_all_by_user(request.user)
+
+        # Filters (search / workspace / test)
+        search = request.GET.get("search", "").strip()
+        workspace_filter = request.GET.get("workspace", "").strip()
+        template_filter = request.GET.get("template", "").strip()
+
+        loaded_data = filter_records(base_data, request.GET)
 
         # Paginator
         page = request.GET.get("page", 1)
@@ -244,6 +310,48 @@ class DashboardRecords(CommonView):
         except Exception:
             results_paginator.object_list = []
 
+        # Filter dropdown options + the label to show in the closed dropdown
+        workspace_options = workspace_api.get_by_id_list(
+            base_data.exclude(workspace__isnull=True)
+            .order_by()
+            .values_list("workspace_id", flat=True)
+            .distinct()
+        )
+        template_options = template_api.get_all_accessible_by_id_list(
+            list(
+                base_data.order_by()
+                .values_list("template_id", flat=True)
+                .distinct()
+            ),
+            request=request,
+        )
+
+        if workspace_filter == "none":
+            workspace_filter_label = "No workspace"
+        elif workspace_filter:
+            workspace_filter_label = next(
+                (
+                    workspace.title
+                    for workspace in workspace_options
+                    if str(workspace.id) == workspace_filter
+                ),
+                "All workspaces",
+            )
+        else:
+            workspace_filter_label = "All workspaces"
+
+        if template_filter:
+            template_filter_label = next(
+                (
+                    template.display_name
+                    for template in template_options
+                    if str(template.id) == template_filter
+                ),
+                "All tests",
+            )
+        else:
+            template_filter_label = "All tests"
+
         # Add user_form for change owner
         user_form = UserForm(request.user)
         context = {
@@ -256,12 +364,20 @@ class DashboardRecords(CommonView):
                 [
                     ("1", "Delete selected records"),
                     ("2", "Change owner of selected records"),
+                    ("3", "Move selected records to a workspace"),
                 ]
             ),
             "menu": self.administration,
             "administration": self.administration,
             "share_pid_button": "core_linked_records_app"
             in settings.INSTALLED_APPS,
+            "search_value": search,
+            "workspace_filter": workspace_filter,
+            "template_filter": template_filter,
+            "workspace_filter_label": workspace_filter_label,
+            "template_filter_label": template_filter_label,
+            "workspace_options": workspace_options,
+            "template_options": template_options,
         }
 
         if self.administration:
@@ -277,6 +393,7 @@ class DashboardRecords(CommonView):
             "core_main_app/user/workspaces/list/modals/assign_workspace.html",
             dashboard_constants.MODALS_COMMON_DELETE,
             dashboard_constants.MODALS_COMMON_CHANGE_OWNER,
+            dashboard_constants.MODALS_COMMON_DOWNLOAD_EXCEL_CONFIRM,
         ]
 
         assets = self._get_assets()
@@ -303,7 +420,7 @@ class DashboardRecords(CommonView):
             ]
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "My Data"})
 
         return self.common_render(
             request,
@@ -399,8 +516,79 @@ class DashboardRecords(CommonView):
                     "path": "core_main_app/common/js/tooltip.js",
                     "is_raw": False,
                 },
+                {
+                    "path": "core_dashboard_common_app/user/js/download_user_data.js",
+                    "is_raw": False,
+                },
+                {
+                    "path": "core_dashboard_common_app/user/js/download_user_data.raw.js",
+                    "is_raw": True,
+                },
+                {
+                    "path": "core_main_app/common/js/wait/waiting.js",
+                    "is_raw": False,
+                },
             ],
         }
+
+        assets["css"].append("core_main_app/common/css/wait/waiting.css")
+
+        # Bulk-select (checkboxes, select all, bulk action dropdown): shared
+        # between admin and regular views so "Modify Records" works for both.
+        assets["js"].append(
+            {
+                "path": "core_dashboard_common_app/admin/js/action_dashboard.js",
+                "is_raw": True,
+            }
+        )
+        assets["js"].append(
+            {
+                "path": dashboard_constants.JS_ADMIN_COUNT_CHECK,
+                "is_raw": True,
+            }
+        )
+        assets["js"].append(
+            {
+                "path": dashboard_constants.JS_ADMIN_RESET_CHECKBOX,
+                "is_raw": True,
+            }
+        )
+        assets["js"].append(
+            {
+                "path": dashboard_constants.JS_ADMIN_SELECT_ALL,
+                "is_raw": True,
+            }
+        )
+        assets["js"].append(
+            {
+                "path": dashboard_constants.JS_ADMIN_SELETED_ELEMENT,
+                "is_raw": False,
+            }
+        )
+        assets["js"].append(
+            {
+                "path": dashboard_constants.JS_ADMIN_INIT_MENU,
+                "is_raw": False,
+            }
+        )
+        assets["js"].append(
+            {
+                "path": "core_dashboard_common_app/user/js/list/record_ids.raw.js",
+                "is_raw": True,
+            }
+        )
+        assets["js"].append(
+            {
+                "path": "core_dashboard_common_app/user/js/list/records_bulk_select.js",
+                "is_raw": False,
+            }
+        )
+        assets["js"].append(
+            {
+                "path": "core_dashboard_common_app/user/js/list/combo_select.js",
+                "is_raw": False,
+            }
+        )
 
         # Admin
         if self.administration:
@@ -410,49 +598,7 @@ class DashboardRecords(CommonView):
                     "is_raw": True,
                 }
             )
-            assets["js"].append(
-                {
-                    "path": "core_dashboard_common_app/admin/js/action_dashboard.js",
-                    "is_raw": True,
-                }
-            )
-            assets["js"].append(
-                {
-                    "path": dashboard_constants.JS_ADMIN_COUNT_CHECK,
-                    "is_raw": True,
-                }
-            )
-            assets["js"].append(
-                {
-                    "path": dashboard_constants.JS_ADMIN_RESET_CHECKBOX,
-                    "is_raw": True,
-                }
-            )
-            assets["js"].append(
-                {
-                    "path": dashboard_constants.JS_ADMIN_SELECT_ALL,
-                    "is_raw": True,
-                }
-            )
-            assets["js"].append(
-                {
-                    "path": dashboard_constants.JS_ADMIN_SELETED_ELEMENT,
-                    "is_raw": False,
-                }
-            )
-            assets["js"].append(
-                {
-                    "path": dashboard_constants.JS_ADMIN_INIT_MENU,
-                    "is_raw": False,
-                }
-            )
         else:
-            assets["js"].append(
-                {
-                    "path": dashboard_constants.JS_USER_SELECTED_ELEMENT,
-                    "is_raw": True,
-                }
-            )
             assets["js"].append(
                 {
                     "path": dashboard_constants.USER_VIEW_RECORD_RAW,
@@ -677,7 +823,7 @@ class DashboardFiles(CommonView):
             )
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "Files"})
 
         return self.common_render(
             request,
@@ -1136,6 +1282,9 @@ class DashboardWorkspaces(CommonView):
                     "is_global": workspace_api.is_workspace_global(
                         user_workspace
                     ),
+                    "records_count": workspace_data_api.get_all_by_workspace(
+                        user_workspace, request.user
+                    ).count(),
                 }
             )
 
@@ -1201,7 +1350,7 @@ class DashboardWorkspaces(CommonView):
             )
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "Shared Workspaces"})
 
         return self.common_render(
             request,
@@ -1295,7 +1444,7 @@ class DashboardWorkspaceRecords(CommonView):
             )
 
         # Set page title
-        context.update({"page_title": "Dashboard"})
+        context.update({"page_title": "Workspace"})
 
         return self.common_render(
             request,

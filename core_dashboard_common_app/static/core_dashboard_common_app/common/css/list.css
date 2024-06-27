@@ -1,3 +1,270 @@
 #id_actions {
     padding: 0.5em;
+    opacity: 1 !important;
+}
+
+#records-modify-wrapper:not(.modify-mode-on) .modify-records-checkbox {
+    display: none !important;
+}
+
+.filter-card {
+    background: #f9fafb;
+    border: 1px solid var(--am-border, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    gap: 12px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+#modify-toolbar-content {
+    display: none !important;
+    flex-shrink: 0;
+}
+
+#records-modify-wrapper.modify-mode-on #modify-toolbar-content {
+    display: flex !important;
+}
+
+#records-modify-wrapper.modify-mode-on #filter-bar-row {
+    background: var(--am-accent-tint, rgba(60, 172, 168, 0.12));
+    border-color: var(--am-accent, #3CACA8);
+}
+
+.search-combo {
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+    height: 42px;
+    background: #fff;
+    border: 1px solid var(--am-border, #e2e8f0);
+    border-radius: 999px;
+}
+
+.search-combo-segment {
+    border-left: 1px solid var(--am-border, #e2e8f0);
+}
+
+.search-combo-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    min-width: 200px;
+    border-left: none;
+    border-radius: 999px 0 0 999px;
+}
+
+.search-combo-input i {
+    color: var(--am-text-muted, #64748b);
+    font-size: 12.5px;
+}
+
+.search-combo-input input {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent;
+    font-family: 'Inter', Arial, sans-serif;
+    font-size: 13.5px;
+    width: 100%;
+}
+
+.search-combo-input input:focus {
+    outline: none;
+}
+
+.search-combo-input input:focus-visible {
+    outline: 2px solid var(--am-accent, #3CACA8);
+    outline-offset: -2px;
+}
+
+.search-combo-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    border: none;
+    border-left: 1px solid var(--am-border, #e2e8f0);
+    border-radius: 0 999px 999px 0;
+    background: var(--am-accent, #3CACA8);
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.search-combo-submit:hover {
+    background: var(--am-accent-dark, #287371);
+}
+
+/* Custom single-select dropdown (matches Database's workspace picker
+   pattern - native <select> option lists can't be styled/hovered). */
+.combo-select {
+    position: relative;
+}
+
+.combo-select-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0 14px;
+    border: none;
+    background: transparent;
+    font-family: 'Inter', Arial, sans-serif;
+    font-size: 13px;
+    color: var(--am-text, #1f2937);
+    cursor: pointer;
+    max-width: 170px;
+    transition: background 0.15s ease;
+}
+
+.combo-select-trigger:hover,
+.combo-select.open .combo-select-trigger {
+    background: var(--am-accent-tint, rgba(60, 172, 168, 0.1));
+}
+
+.combo-select-trigger:focus {
+    outline: none;
+}
+
+.combo-select-trigger:focus-visible {
+    outline: 2px solid var(--am-accent, #3CACA8);
+    outline-offset: -2px;
+}
+
+.combo-select-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.combo-select-trigger i {
+    font-size: 10px;
+    color: var(--am-text-muted, #64748b);
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}
+
+.combo-select.open .combo-select-trigger i {
+    transform: rotate(180deg);
+}
+
+.combo-select-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid var(--am-border, #e2e8f0);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 20;
+    padding: 6px;
+}
+
+.combo-select.open .combo-select-panel {
+    display: block;
+}
+
+.combo-select-option {
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-family: 'Inter', Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--am-text, #1f2937);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.combo-select-option:hover {
+    background: var(--am-accent-tint, rgba(60, 172, 168, 0.14));
+    color: var(--am-accent-dark, #287371);
+}
+
+.combo-select-option.is-selected {
+    color: var(--am-accent-dark, #287371);
+    font-weight: 700;
+}
+
+#toggle-modify-records {
+    height: 42px;
+    flex-shrink: 0;
+}
+
+.clear-filters-link {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    white-space: nowrap;
+    gap: 3px;
+    border: none;
+    background: none;
+    color: var(--am-text-muted, #64748b);
+    font-family: 'Inter', Arial, sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    text-decoration: none;
+    cursor: pointer;
+    padding: 0 2px;
+}
+
+.clear-filters-link i {
+    font-size: 10px;
+}
+
+.clear-filters-link.is-invisible {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.clear-filters-link:hover,
+.clear-filters-link:focus {
+    color: var(--am-accent-dark, #287371);
+    text-decoration: underline;
+}
+
+#toggle-modify-records.active {
+    background-color: var(--am-accent-tint, rgba(60, 172, 168, 0.12)) !important;
+    border-color: var(--am-accent, #3CACA8) !important;
+    color: var(--am-accent-dark, #287371) !important;
+}
+
+#id_actions .dropdown-menu {
+    min-width: 280px;
+    padding: 6px 0;
+    border-radius: 10px;
+    border-color: var(--am-border, #e2e8f0);
+}
+
+#id_actions .dropdown-menu li {
+    padding: 9px 18px;
+    white-space: nowrap;
+    font-size: 13.5px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+#id_actions .dropdown-menu li:hover {
+    background: var(--am-accent-tint, rgba(60, 172, 168, 0.12));
+    color: var(--am-accent-dark, #287371);
+}
+
+.modify-records-checkbox input[type=checkbox] {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--am-accent, #3CACA8);
+    cursor: pointer;
+}
+
+#records-modify-wrapper.modify-mode-on tbody tr:hover {
+    background: var(--am-accent-tint, rgba(60, 172, 168, 0.06));
+}
+
+#records-modify-wrapper.modify-mode-on tbody tr:has(.modify-records-checkbox input:checked) {
+    background: var(--am-accent-tint, rgba(60, 172, 168, 0.08));
 }

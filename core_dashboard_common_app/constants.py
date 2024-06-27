@@ -11,6 +11,10 @@ DASHBOARD_PROFILE_TEMPLATE = "core_dashboard_common_app/my_profile.html"
 DASHBOARD_PROFILE_EDIT_TEMPLATE = (
     "core_dashboard_common_app/my_profile_edit.html"
 )
+DASHBOARD_PROFILE_CHANGE_PASSWORD_TEMPLATE = (
+    "core_dashboard_common_app/my_profile_change_password.html"
+)
+RECORDS_DASHBOARD_TEMPLATE = "core_dashboard_common_app/my_records_dashboard.html"
 DASHBOARD_TEMPLATE = "core_dashboard_common_app/my_dashboard.html"
 ADMIN_DASHBOARD_TEMPLATE = "core_dashboard_common_app/admin/dashboard.html"
 
@@ -47,12 +51,18 @@ MODALS_COMMON_DELETE = (
 MODALS_COMMON_CHANGE_OWNER = (
     "core_dashboard_common_app/list/modals/change_owner.html"
 )
+MODALS_COMMON_DOWNLOAD_EXCEL_CONFIRM = (
+    "core_dashboard_common_app/list/modals/download_excel_confirm.html"
+)
 
 # TODO: replace with the constants in core main app once they are done
 CSS_COMMON = [
     "core_main_app/common/css/XMLTree.css",
     "core_main_app/common/css/table.css",
     "core_dashboard_common_app/common/css/list.css",
+]
+CSS_PROFILE = [
+    "core_dashboard_common_app/common/css/profile.css",
 ]
 JS_COMMON = [
     {"path": "core_dashboard_common_app/user/js/init.js", "is_raw": False},

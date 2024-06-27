@@ -13,10 +13,12 @@
 
 <input type="hidden" class="{{data.document}}-id"/>
 <p>
-    The owner of the document(s) will be modified.
+    The owner of the record(s) will be modified.
 </p>
-<p>Please select the new owner:
-       {{data.user_form}}</p>
+<div class="am-modal-field">
+    <label>Please select the new owner:</label>
+    <div id="change-owner-form-container"></div>
+</div>
 {% endblock %}
 
 {% block modal_footer %}

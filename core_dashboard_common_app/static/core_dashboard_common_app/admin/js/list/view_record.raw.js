@@ -1,1 +1,1 @@
-var viewRecordUrl = "{% url 'core-admin:core_main_app_data_detail' %}";
+var loadRecordUrl = "{% url 'core_main_app_rest_data_load' 'pk' %}";

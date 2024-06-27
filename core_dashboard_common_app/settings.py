@@ -14,7 +14,7 @@ SERVER_URI = getattr(settings, "SERVER_URI", "http://localhost")
 INSTALLED_APPS = getattr(settings, "INSTALLED_APPS", [])
 
 # Number of documents to display per page for pagination
-RESULTS_PER_PAGE = getattr(settings, "RESULTS_PER_PAGE", 10)
+RESULTS_PER_PAGE = getattr(settings, "RESULTS_PER_PAGE", 50)
 
 # Number of forms to display per page for pagination
 FORM_PER_PAGE_PAGINATION = getattr(

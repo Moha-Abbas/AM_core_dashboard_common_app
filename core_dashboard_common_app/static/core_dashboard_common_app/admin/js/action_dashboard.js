@@ -11,4 +11,8 @@ action_dashboard = function(selectValue) {
     else if (selectValue == 2) {
         changeOwnerDocument();
     }
+    // Move to workspace
+    else if (selectValue == 3) {
+        load_form_change_workspace();
+    }
 };

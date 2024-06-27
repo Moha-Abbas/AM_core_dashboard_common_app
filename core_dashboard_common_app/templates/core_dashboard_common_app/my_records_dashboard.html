@@ -1,0 +1,87 @@
+{% extends 'core_main_app/_render/admin/theme/tools/box.html' %}
+{% load special_plural %}
+
+{% block box_title %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="am-title-row">
+        <h1>My Data</h1>
+        {% if data.user_data %}<span class="am-count-badge">{{ data.number_total }} {{data.document|special_plural}}</span>{% endif %}
+    </div>
+    <a href="#" id="downloaduserdata" class="btn btn-primary" style="margin-bottom: 0;">
+        <i class="fas fa-download"></i> Download Excel
+    </a>
+</div>
+{% endblock %}
+
+{% block box_body %}
+<div id="records-modify-wrapper">
+    <div id="filter-bar-row" class="filter-card d-flex align-items-center justify-content-between">
+        <div id="filter-bar-content" class="d-flex align-items-center" style="gap: 10px;">
+            <form method="get" class="search-combo">
+                <div class="search-combo-segment search-combo-input">
+                    <i class="fas fa-search"></i>
+                    <input type="text" name="search" placeholder="Search records" value="{{ data.search_value }}">
+                </div>
+                <div class="search-combo-segment combo-select">
+                    <button type="button" class="combo-select-trigger">
+                        <span class="combo-select-label">{{ data.workspace_filter_label }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <input type="hidden" name="workspace" value="{{ data.workspace_filter }}">
+                    <div class="combo-select-panel">
+                        <div class="combo-select-option{% if not data.workspace_filter %} is-selected{% endif %}" data-value="">All workspaces</div>
+                        <div class="combo-select-option{% if data.workspace_filter == "none" %} is-selected{% endif %}" data-value="none">No workspace</div>
+                        {% for workspace in data.workspace_options %}
+                            <div class="combo-select-option{% if data.workspace_filter == workspace.id|stringformat:"s" %} is-selected{% endif %}" data-value="{{ workspace.id }}">{{ workspace.title }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="search-combo-segment combo-select">
+                    <button type="button" class="combo-select-trigger">
+                        <span class="combo-select-label">{{ data.template_filter_label }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <input type="hidden" name="template" value="{{ data.template_filter }}">
+                    <div class="combo-select-panel">
+                        <div class="combo-select-option{% if not data.template_filter %} is-selected{% endif %}" data-value="">All tests</div>
+                        {% for template in data.template_options %}
+                            <div class="combo-select-option{% if data.template_filter == template.id|stringformat:"s" %} is-selected{% endif %}" data-value="{{ template.id }}">{{ template.display_name }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <button type="submit" class="search-combo-submit" title="Filter">
+                    <i class="fas fa-filter"></i>
+                </button>
+            </form>
+
+            <a href="?" class="clear-filters-link{% if not data.search_value and not data.workspace_filter and not data.template_filter %} is-invisible{% endif %}">
+                <i class="fas fa-xmark"></i> Clear all
+            </a>
+        </div>
+
+        <div id="modify-toolbar-content" class="d-flex align-items-center" style="gap: 12px;">
+            <span id="modify-selected-count" class="am-count-badge"></span>
+            <div class="dropdown" id="id_actions">
+                <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenu1" {% if BOOTSTRAP_VERSION|first == "4" %}data-toggle{% elif BOOTSTRAP_VERSION|first == "5"  %}data-bs-toggle{% endif %}="dropdown" aria-haspopup="true" aria-expanded="true">
+                    Choose action
+                    <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu">
+                    {% for value, text in data.action_form.fields.actions.choices %}
+                        <li style="cursor: pointer;" onclick="action_dashboard({{value}});">{{text}}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <button type="button" id="toggle-modify-records" class="btn btn-secondary">
+            <i id="toggle-modify-records-icon" class="fas fa-list-check"></i>
+            <span id="toggle-modify-records-label">Modify Records</span>
+        </button>
+    </div>
+
+    <div id="records-tab" class="tab-content">
+        {% include data.template with objects=data.user_data group='user' count=data.number_total tabs=data.tabs document=data.document%}
+    </div>
+</div>
+{% endblock %}

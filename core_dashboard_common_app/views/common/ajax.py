@@ -1,6 +1,9 @@
 """ Ajax API
 """
 import json
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.template import loader
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -33,6 +36,11 @@ from core_main_app.components.template.models import Template
 from core_main_app.components.workspace import api as workspace_api
 from core_main_app.settings import INSTALLED_APPS
 from core_main_app.utils.labels import get_data_label, get_form_label
+from core_main_app.utils.xml import format_content_xml
+from core_dashboard_common_app.views.common.forms import UserForm
+from core_dashboard_common_app.views.common.record_filters import (
+    filter_records,
+)
 
 if "core_curate_app" in INSTALLED_APPS:
     from core_curate_app.components.curate_data_structure.models import (
@@ -231,7 +239,12 @@ def delete_document(request):
     document = request.POST["functional_object"]
 
     document_ids = request.POST.getlist("document_id[]", [])
-    if len(document_ids) > 1 and not request.user.is_superuser:
+    is_record = document == constants.FUNCTIONAL_OBJECT_ENUM.RECORD.value
+    if (
+        len(document_ids) > 1
+        and not request.user.is_superuser
+        and not is_record
+    ):
         return HttpResponseServerError(
             {"You don't have the rights to perform this action."}, status=403
         )
@@ -345,6 +358,12 @@ def _delete_form(request, form_ids):
 def _delete_record(request, data_ids):
     """Delete records.
 
+    Each id is resolved and deleted independently, so a single stale/
+    missing/locked id in a bulk selection doesn't silently abort deletion
+    of the rest of the batch (previously, fetching all records up front
+    meant one bad id made the whole request a no-op that still reported
+    success to the browser).
+
     Args:
         request:
         data_ids:
@@ -352,41 +371,51 @@ def _delete_record(request, data_ids):
     Returns:
     """
 
-    try:
-        list_data = _get_data(data_ids, request.user)
-    except Exception as exception:
-        messages.add_message(request, messages.ERROR, str(exception))
-        return HttpResponse(
-            json.dumps({}), content_type="application/javascript"
-        )
+    deleted_count = 0
+    skipped_count = 0
 
-    try:
-        for data in list_data:
-            # Check if the data is locked
+    for data_id in data_ids:
+        try:
+            data = data_api.get_by_id(data_id, request.user)
+            _check_rights_document(
+                request.user.is_superuser, str(request.user.id), data.user_id
+            )
+
             if lock_api.is_object_locked(data.id, request.user):
-                message = Message(
-                    messages.ERROR,
-                    "The "
-                    + get_data_label()
-                    + " is locked. You can't edit it.",
-                )
-                return HttpResponseBadRequest(
-                    json.dumps({"message": message.message}),
-                    content_type="application/javascript",
-                )
+                skipped_count += 1
+                continue
 
             data_api.delete(data, request.user)
-        messages.add_message(
-            request,
-            messages.SUCCESS,
-            get_data_label().capitalize() + " deleted.",
-        )
-    except Exception:
-        messages.add_message(
-            request, messages.ERROR, "A problem occurred while deleting."
+            deleted_count += 1
+        except Exception:
+            skipped_count += 1
+
+    label = get_data_label()
+    if deleted_count == 0:
+        return HttpResponseBadRequest(
+            json.dumps(
+                {
+                    "message": "Unable to delete: the selected "
+                    + label
+                    + "(s) could not be found, are locked, or you don't "
+                    "have the rights to delete them. Please refresh the "
+                    "page and try again."
+                }
+            ),
+            content_type="application/javascript",
         )
 
-    return HttpResponse(json.dumps({}), content_type="application/javascript")
+    # No django `messages` added here: a bulk delete over a large
+    # selection is sent as several chunked requests (one per 500 ids), and
+    # each one hitting this view separately would each queue its own
+    # message, so the user'd see them all pile up on reload ("500
+    # deleted", then "31 deleted", ...). The client aggregates the
+    # deleted/skipped counts from every chunk's response below and shows
+    # a single consolidated notification once the whole batch is done.
+    return HttpResponse(
+        json.dumps({"deleted": deleted_count, "skipped": skipped_count}),
+        content_type="application/javascript",
+    )
 
 
 def _delete_query(request, query_ids):
@@ -442,6 +471,102 @@ def _delete_query(request, query_ids):
 
 
 @login_required
+def load_form_change_owner(request):
+    """Load the change-owner form for a single document, with its current
+    owner preselected.
+
+    Args:
+        request:
+
+    Returns:
+    """
+    document_id = request.POST.get("document_id")
+    functional_object = request.POST.get("functional_object")
+
+    if not functional_object:
+        return HttpResponseBadRequest(
+            {"Bad entries. Please check the parameters."}
+        )
+
+    # document_id is only present for a single-record action; a bulk
+    # change-owner has no single current owner to preselect, so the form
+    # falls back to its default blank choice.
+    current_owner_id = None
+    if document_id:
+        try:
+            if (
+                functional_object
+                == constants.FUNCTIONAL_OBJECT_ENUM.RECORD.value
+            ):
+                current_owner_id = data_api.get_by_id(
+                    document_id, request.user
+                ).user_id
+            elif (
+                functional_object
+                == constants.FUNCTIONAL_OBJECT_ENUM.FILE.value
+            ):
+                current_owner_id = blob_api.get_by_id(
+                    document_id, request.user
+                ).user_id
+            elif (
+                functional_object
+                == constants.FUNCTIONAL_OBJECT_ENUM.FORM.value
+                and "core_curate_app" in INSTALLED_APPS
+            ):
+                current_owner_id = curate_data_structure_api.get_by_id(
+                    document_id, request.user
+                ).user_id
+        except Exception:
+            # Owner can't be resolved (e.g. no access) - the form falls
+            # back to its default blank choice.
+            current_owner_id = None
+
+    form = UserForm(request.user, current_owner_id)
+
+    return HttpResponse(
+        json.dumps(
+            {
+                "form": loader.render_to_string(
+                    "core_dashboard_common_app/list/modals/change_owner_form.html",
+                    {"user_form": form},
+                )
+            }
+        ),
+        content_type="application/javascript",
+    )
+
+
+@login_required
+def get_record_ids(request):
+    """Return all record ids owned by the user (matching the current
+    search/workspace/test filters), used to resolve a cross-page
+    "select all" on the My Data page into a concrete id list.
+
+    Args:
+        request:
+
+    Returns:
+    """
+    if request.GET.get("administration") == "True" and request.user.is_superuser:
+        try:
+            queryset = data_api.get_all(request.user)
+        except AccessControlError:
+            queryset = data_api.get_none()
+    else:
+        queryset = data_api.get_all_by_user(request.user)
+
+    queryset = filter_records(queryset, request.GET)
+    ids = list(
+        queryset.order_by().values_list("id", flat=True).distinct()
+    )
+
+    return HttpResponse(
+        json.dumps({"ids": [str(record_id) for record_id in ids]}),
+        content_type="application/javascript",
+    )
+
+
+@login_required
 def change_owner_document(request):
     """Change owner of a document (record or form).
 
@@ -460,7 +585,12 @@ def change_owner_document(request):
         user_id = request.POST["user_id"]
 
         document_ids = request.POST.getlist("document_id[]", [])
-        if len(document_ids) > 1 and not request.user.is_superuser:
+        is_record = document == constants.FUNCTIONAL_OBJECT_ENUM.RECORD.value
+        if (
+            len(document_ids) > 1
+            and not request.user.is_superuser
+            and not is_record
+        ):
             return HttpResponseServerError(
                 {"You don't have the rights to perform this action."},
                 status=403,
@@ -517,9 +647,12 @@ def _change_owner_form(request, form_ids, user_id):
     return HttpResponse(json.dumps({}), content_type="application/javascript")
 
 
-# FIXME: fix error message
 def _change_owner_record(request, data_ids, user_id):
-    """Change the owner of a record.
+    """Change the owner of records.
+
+    Each id is resolved and updated independently, so a single stale/
+    missing/inaccessible id in a bulk selection doesn't abort the change
+    for the rest of the batch.
 
     Args:
         request:
@@ -529,17 +662,43 @@ def _change_owner_record(request, data_ids, user_id):
     Returns:
     """
     try:
-        list_data = _get_data(data_ids, request.user)
-    except Exception as exception:
-        return HttpResponseBadRequest(escape(str(exception)))
-    try:
         new_user = user_api.get_user_by_id(user_id)
-        for data in list_data:
-            data_api.change_owner(data, new_user, request.user)
     except Exception as exception:
         return HttpResponseBadRequest(escape(str(exception)))
 
-    return HttpResponse(json.dumps({}), content_type="application/javascript")
+    changed_count = 0
+    skipped_count = 0
+    for data_id in data_ids:
+        try:
+            data = data_api.get_by_id(data_id, request.user)
+            data_api.change_owner(data, new_user, request.user)
+            changed_count += 1
+        except Exception:
+            skipped_count += 1
+
+    label = get_data_label()
+    if changed_count == 0:
+        return HttpResponseBadRequest(
+            json.dumps(
+                {
+                    "message": "Unable to change owner: the selected "
+                    + label
+                    + "(s) could not be found or you don't have the "
+                    "rights to change them. Please refresh the page and "
+                    "try again."
+                }
+            ),
+            content_type="application/javascript",
+        )
+
+    # No django `messages` added here - see the matching note in
+    # _delete_record: a large selection is sent in chunks, and the client
+    # aggregates deleted/skipped counts across all of them into a single
+    # notification instead of one per chunk.
+    return HttpResponse(
+        json.dumps({"changed": changed_count, "skipped": skipped_count}),
+        content_type="application/javascript",
+    )
 
 
 def _change_owner_file(request, blob_ids, user_id):
@@ -668,14 +827,24 @@ def edit_record(request):
             json.dumps({"message": message.message, "tags": message.tags}),
             content_type="application/json",
         )
+    
 
-    return HttpResponse(
-        json.dumps(
-            {
-                "url": reverse(
-                    "core_curate_enter_data", args=(curate_data_structure.id,)
-                )
-            }
-        ),
-        content_type="application/javascript",
-    )
+    data_id = data.id
+    data_content = data.content
+    data_title = data.title
+    data_template = data.template_id
+
+    data_content = format_content_xml(data_content)
+
+    # Store data in session
+    request.session['edit_record_data'] = {
+        'data_id': data_id,
+        'data_content': data_content,
+        'data_title': data_title,
+        'test_id' :  data_template,
+        'edit': True
+    }
+
+    return JsonResponse({
+        'url': '/gvform/edit'
+    })

@@ -5,17 +5,17 @@
 
 <thead>
     <tr>
-        {% if data.menu and not data.title %}
-            <th>
+        {% if not data.title %}
+            <th class="modify-records-checkbox">
                 <input type="checkbox" id="select_all_{{group}}"
                        onchange="selectAll(this, '{{group}}')" />
             </th>
         {% endif %}
         <th>Name</th>
-        <th>Template
-        <i class="btn fas fa-circle-question"
+        <th>Test
+        <!--<i class="btn fas fa-circle-question"
        {% if BOOTSTRAP_VERSION|first == "4" %}data-toggle{% elif BOOTSTRAP_VERSION|first == "5"  %}data-bs-toggle{% endif %}="tooltip"
-        title="JSON Schema support can be enabled in the project settings."></i>
+        title="JSON Schema support can be enabled in the project settings."></i>-->
         </th>
         <th>Last Modification date</th>
         {% if data.username_list %}
@@ -30,21 +30,22 @@
 <tbody>
     {% for data_loaded in objects %}
         <tr objectid="{{data_loaded.data.id}}">
-            {% if data.menu and not data.title %}
-            <td id="actionCheckbox_{{forloop.counter}}">
+            {% if not data.title %}
+            <td id="actionCheckbox_{{forloop.counter}}" class="modify-records-checkbox">
                 <input type="checkbox" id={{data_loaded.data.id}} name={{group}}>
             </td>
             {% endif %}
-            <td>
-
+           <td>
                 {{ data_loaded.data.title }}
-                {% if data.administration and data_loaded.forms_count > 0  %}
+               
+               <!-- 
+               {% if data.administration and data_loaded.forms_count > 0  %}
                     ,<text class="text-danger"> Draft{{ data_loaded.forms_count|pluralize }} </text>
                 {% elif data_loaded.form_id %}
                     ,<text class="text-danger"> Draft </text>
                 {% endif %}
-
-            </td>
+                -->
+           </td>
             <td>
                 {{ data_loaded.data.template.display_name }}
             </td>
@@ -69,21 +70,21 @@
             {% endif %}
             <td>
                 <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownActions" {% if BOOTSTRAP_VERSION|first == "4" %}data-toggle{% elif BOOTSTRAP_VERSION|first == "5"  %}data-bs-toggle{% endif %}="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <i class="fas fa-sliders"></i> Actions
+                    <i class="fas fa-sliders"></i>
                 </button>
 
                 <div class="dropdown-menu" aria-labelledby="dropdownActions">
                     <a class="dropdown-item view-record-btn {% if not data_loaded.can_read %} disabled {% endif %}" href="#">
                         <i class="fas fa-file-alt"></i> View
                     </a>
-                    <a type="button"  id="pid-sharing" class="share-btn dropdown-item {% if not data.share_pid_button %} disabled {% endif %}">
+                    <!--<a type="button"  id="pid-sharing" class="share-btn dropdown-item {% if not data.share_pid_button %} disabled {% endif %}">
                         <i class="fas fa-link"></i> Share PID
-                    </a>
+                    </a>-->
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item edit-record-btn {% if not data_loaded.can_write %} disabled {% endif %}" href="#" >
                         <i class="fas fa-edit"></i> Edit
                     </a>
-                    {% if data_loaded.data.template.format == "XSD" %}
+                    <!--{% if data_loaded.data.template.format == "XSD" %}
                         {% if data_loaded.form_id %}
                         <a class="dropdown-item {% if not data_loaded.can_write %} disabled {% endif %}"
                            href="{% url 'core_curate_app_xml_text_editor_view'%}?id={{ data_loaded.form_id }}">
@@ -93,7 +94,7 @@
                         <a class="dropdown-item open-xml-record-btn {% if not data_loaded.can_write %} disabled {% endif %}" href="#">
                             <i class="fas fa-code"></i> Open
                         </a>
-                        {% endif %}
+                        {% endif %}-->
                     {% elif data_loaded.data.template.format == "JSON" %}
                         {% if data_loaded.form_id %}
                         <a class="dropdown-item {% if not data_loaded.can_write %} disabled {% endif %}"
@@ -117,7 +118,7 @@
                     <a class="dropdown-item delete-document-btn {% if not data_loaded.is_owner %} disabled {% endif %}" href="#">
                             <i class="fas fa-trash"></i> Delete
                     </a>
-                    {% if data.administration and  data_loaded.forms_count > 0 %}
+                    <!--{% if data.administration and  data_loaded.forms_count > 0 %}
                         <a objectid="{{data_loaded.data.id}}" class="dropdown-item delete-data-draft-list-btn" href="#">
                             <i class="fas fa-trash"></i> Delete Draft{{ data_loaded.forms_count|pluralize }}
                         </a>
@@ -125,7 +126,7 @@
                         <a objectid="{{data_loaded.form_id}}" class="dropdown-item  delete-draft-btn" href="#">
                             <i class="fas fa-trash"></i> Delete Draft
                         </a>
-                    {% endif %}
+                    {% endif %}-->
 
                 </div>
 

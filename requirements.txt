@@ -1,2 +1,2 @@
-Django
-django-simple-menu
+Django==4.2.30
+django-simple-menu==2.1.4
